@@ -62,9 +62,10 @@ const registerAccounts = async () => {
     let proxyId = "N/A";
     try {
       proxyId = proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
-    } catch (e) { /* en caso de error, se mantiene "N/A" */ }
+    } catch (e) { /* Si falla, se mantiene "N/A" */ }
 
-    const ip = await getProxyIP();
+    // Se obtiene la IP pública a través del proxy
+    const ip = await getProxyIP(proxy);
     console.log(`💻 Using Proxy ID: [${proxyId}] - Public IP [${ip}]`);
     console.log(`⚙️  Registering Wallet - [${wallet.address}]`);
 
@@ -104,7 +105,8 @@ const performActivation = async (wallet) => {
   try {
     proxyId = proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
   } catch (e) { }
-  const ip = await getProxyIP();
+  // Obtener la IP del proxy
+  const ip = await getProxyIP(proxy);
   console.log(`💻 Using Proxy ID: [${proxyId}] - Public IP [${ip}]`);
   console.log(`🔄 Activating Node For Wallet - [${wallet.address}]`);
 
@@ -199,3 +201,4 @@ const mainMenu = async () => {
 };
 
 mainMenu();
+

@@ -1,5 +1,6 @@
 // scripts/apis.js
 const axios = require('axios');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 const commonHeaders = {
   'Content-Type': 'application/json',
@@ -13,7 +14,6 @@ const validateRefCode = async (invite_code = "4mCxH9Tf") => {
   const payload = { invite_code };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
-    // Se espera que response.data.data.valid sea true
     return response;
   } catch (error) {
     throw error;
@@ -21,11 +21,10 @@ const validateRefCode = async (invite_code = "4mCxH9Tf") => {
 };
 
 const registerWallet = async (walletAddress) => {
-  const url = 'https://referralapi.layeredge.io/api/referral/register-wallet/4mCxH9Tf'; // changeable
+  const url = 'https://referralapi.layeredge.io/api/referral/register-wallet/4mCxH9Tf';
   const payload = { walletAddress };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
-    // Se filtra response.data.message === "registered wallet address successfully"
     return response;
   } catch (error) {
     throw error;
@@ -37,7 +36,6 @@ const verifyCaptcha = async (captchaToken) => {
   const payload = { token: captchaToken };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
-    // Se espera que response.data.success sea true
     return response;
   } catch (error) {
     throw error;
@@ -45,22 +43,23 @@ const verifyCaptcha = async (captchaToken) => {
 };
 
 const startNode = async (walletAddress, signature, timestamp) => {
-  // Reemplazamos $ADDRESS en la URL con la dirección de la wallet
   const url = `https://referralapi.layeredge.io/api/light-node/node-action/${walletAddress}/start`;
   const payload = { sign: signature, timestamp };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
-    // Se filtra que response.data.message === "node action executed successfully"
     return response;
   } catch (error) {
     throw error;
   }
 };
 
-const getProxyIP = async () => {
+// Actualizamos getProxyIP para usar el proxy
+const getProxyIP = async (proxy) => {
   const url = 'https://api.ipify.org?format=json';
   try {
-    const response = await axios.get(url);
+    // Se crea un agente que enruta la petición a través del proxy
+    const agent = new SocksProxyAgent(proxy);
+    const response = await axios.get(url, { httpAgent: agent, httpsAgent: agent });
     return response.data.ip;
   } catch (error) {
     throw error;
@@ -72,7 +71,6 @@ const claimDailyPoints = async (walletAddress, signature, timestamp) => {
   const payload = { sign: signature, timestamp, walletAddress };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
-    // Se filtra que response.data.message === "node points claimed successfully"
     return response;
   } catch (error) {
     throw error;
@@ -87,3 +85,4 @@ module.exports = {
   getProxyIP,
   claimDailyPoints
 };
+
