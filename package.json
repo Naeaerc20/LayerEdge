@@ -15,6 +15,7 @@
     "ethers": "^5.7.2",
     "figlet": "^1.6.0",
     "inquirer": "^8.2.4",
+    "readline-sync": "^1.4.10",
     "socks-proxy-agent": "^8.0.5"
   },
   "author": "",
