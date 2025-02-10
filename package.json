@@ -1,0 +1,22 @@
+{
+  "name": "LayerEdge",
+  "version": "1.0.0",
+  "description": "LayerEdge Project",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "generate-wallets": "node wallet_generator.js",
+    "aggregate-wallets": "node wallet_aggregator.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "colors": "^1.4.0",
+    "console-clear": "^1.0.0",
+    "ethers": "^5.7.2",
+    "figlet": "^1.6.0",
+    "inquirer": "^8.2.4",
+    "socks-proxy-agent": "^8.0.5"
+  },
+  "author": "",
+  "license": "ISC"
+}
