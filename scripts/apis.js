@@ -9,7 +9,7 @@ const commonHeaders = {
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 };
 
-const validateRefCode = async (invite_code = "4mCxH9Tf") => {
+const validateRefCode = async (invite_code = "VH4CVO73") => {
   const url = 'https://referralapi.layeredge.io/api/referral/verify-referral-code';
   const payload = { invite_code };
   try {
@@ -21,7 +21,7 @@ const validateRefCode = async (invite_code = "4mCxH9Tf") => {
 };
 
 const registerWallet = async (walletAddress) => {
-  const url = 'https://referralapi.layeredge.io/api/referral/register-wallet/4mCxH9Tf';
+  const url = 'https://referralapi.layeredge.io/api/referral/register-wallet/VH4CVO73';
   const payload = { walletAddress };
   try {
     const response = await axios.post(url, payload, { headers: commonHeaders });
