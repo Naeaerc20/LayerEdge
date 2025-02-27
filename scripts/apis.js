@@ -1,4 +1,3 @@
-// scripts/apis.js
 const axios = require('axios');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 
@@ -53,11 +52,9 @@ const startNode = async (walletAddress, signature, timestamp) => {
   }
 };
 
-// Actualizamos getProxyIP para usar el proxy
 const getProxyIP = async (proxy) => {
   const url = 'https://api.ipify.org?format=json';
   try {
-    // Se crea un agente que enruta la petición a través del proxy
     const agent = new SocksProxyAgent(proxy);
     const response = await axios.get(url, { httpAgent: agent, httpsAgent: agent });
     return response.data.ip;
@@ -66,11 +63,11 @@ const getProxyIP = async (proxy) => {
   }
 };
 
-const claimDailyPoints = async (walletAddress, signature, timestamp) => {
+const claimDailyPoints = async (walletAddress, signature, timestamp, axiosOptions = {}) => {
   const url = 'https://referralapi.layeredge.io/api/light-node/claim-node-points';
   const payload = { sign: signature, timestamp, walletAddress };
   try {
-    const response = await axios.post(url, payload, { headers: commonHeaders });
+    const response = await axios.post(url, payload, { headers: commonHeaders, ...axiosOptions });
     return response;
   } catch (error) {
     throw error;
@@ -85,4 +82,3 @@ module.exports = {
   getProxyIP,
   claimDailyPoints
 };
-

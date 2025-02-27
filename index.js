@@ -5,22 +5,48 @@ const fs = require('fs');
 const { registerWallet, startNode, getProxyIP, claimDailyPoints } = require('./scripts/apis');
 const ethers = require('ethers');
 const colors = require('colors');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
-const retryOperation = async (operation, maxRetries = 1, delayTime = 1000) => {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (error.response && [400, 401, 403, 405, 410].includes(error.response.status)) {
-        throw error;
-      }
-      if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayTime));
-      } else {
-        throw error;
+const retryOperation = async (operation, maxRetries = 1, delayTime = 1000, wallet = null, proxies = null) => {
+  let phase = 1;
+  while (phase <= 2) {
+    let attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        return await operation();
+      } catch (error) {
+        if ((error.message && error.message.includes("socket hang up")) || error.code === 'ECONNRESET') {
+          attempts++;
+          console.log(`Socket hang up error for wallet [${wallet ? wallet.address : 'N/A'}]. Attempt ${attempts} of ${maxRetries} in phase ${phase}.`);
+          if (attempts < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, delayTime));
+            continue;
+          }
+        } else if (error.response && [400, 401, 403, 405, 410].includes(error.response.status)) {
+          throw error;
+        } else {
+          attempts++;
+          if (attempts < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, delayTime));
+            continue;
+          } else {
+            throw error;
+          }
+        }
       }
     }
+    if (wallet && proxies && phase === 1) {
+      const currentProxy = wallet.proxy;
+      const currentIndex = proxies.indexOf(currentProxy);
+      const nextIndex = (currentIndex + 1) % proxies.length;
+      wallet.proxy = proxies[nextIndex];
+      console.log(`Exceeded ${maxRetries} retries with current proxy. Changing proxy for wallet [${wallet.address}] to ${wallet.proxy}`);
+      phase++;
+    } else {
+      break;
+    }
   }
+  throw new Error("Operation failed after retries and proxy change");
 };
 
 const loadActivated = () => {
@@ -76,26 +102,29 @@ const registerAccounts = async () => {
     if (!wallet.proxy) {
       wallet.proxy = proxies[(wallet.id - 1) % proxies.length];
     }
-    const proxy = wallet.proxy;
-    let proxyId = "N/A";
     try {
-      proxyId = proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
-    } catch (e) {}
-    const ip = await retryOperation(() => getProxyIP(proxy));
-    console.log(`💻 Using Proxy ID: [${proxyId}] - Public IP [${ip}]`);
+      const ip = await retryOperation(() => getProxyIP(wallet.proxy), 5, 1000, wallet, proxies);
+      let proxyId = "N/A";
+      try {
+        proxyId = wallet.proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
+      } catch (e) {}
+      console.log(`⚙️  Using Proxy ID - [${proxyId}]`);
+    } catch (error) {
+      console.log(`🔴 Failed to retrieve IP for Wallet [${wallet.address}] after retries. Proceeding with registration attempt.`);
+    }
     console.log(`⚙️  Registering Wallet - [${wallet.address}]`);
     try {
       const response = await retryOperation(() => registerWallet(wallet.address));
       if (response.data.message === "registered wallet address successfully") {
-        console.log(`🟢 Wallet [${wallet.address}] - Has been successfully Registered \n`);
-        registered.push({ address: wallet.address, proxy: proxy, is_registered: true });
+        console.log(`🟢 Wallet [${wallet.address}] - Has been successfully Registered\n`);
+        registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: true });
       } else {
-        console.log(`🔴 Wallet [${wallet.address}] - Registration Failed \n`);
-        registered.push({ address: wallet.address, proxy: proxy, is_registered: false });
+        console.log(`🔴 Wallet [${wallet.address}] - Registration Failed\n`);
+        registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: false });
       }
     } catch (error) {
-      console.log(`🔴 Wallet [${wallet.address}] - Registration Failed after retries \n`);
-      registered.push({ address: wallet.address, proxy: proxy, is_registered: false });
+      console.log(`🔴 Wallet [${wallet.address}] - Registration Failed after retries\n`);
+      registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: false });
     }
     saveRegistered(registered);
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -109,16 +138,21 @@ const performActivation = async (wallet) => {
   const activationRecord = activated.find(a => a.address === wallet.address);
   const currentTimestamp = Date.now();
   if (activationRecord && (currentTimestamp - activationRecord.last_activation < 24 * 60 * 60 * 1000)) {
-    console.log(`⏱ Wallet [${wallet.address}] was activated less than 24 hours ago. Skipping activation.`);
+    console.log(`⏱  Wallet [${wallet.address}] was activated less than 24 hours ago. Skipping activation.\n`);
     return;
   }
-  const proxy = wallet.proxy;
-  let proxyId = "N/A";
   try {
-    proxyId = proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
-  } catch (e) {}
-  const ip = await retryOperation(() => getProxyIP(proxy));
-  console.log(`💻 Using Proxy ID: [${proxyId}] - Public IP [${ip}]`);
+    const proxies = loadProxies();
+    const ip = await retryOperation(() => getProxyIP(wallet.proxy), 5, 1000, wallet, proxies);
+    let proxyId = "N/A";
+    try {
+      proxyId = wallet.proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
+    } catch (e) {}
+    console.log(`⚙️  Using Proxy ID - [${proxyId}]`);
+  } catch (error) {
+    console.log(`🔴 Failed to retrieve IP for Wallet [${wallet.address}] after retries. Skipping activation.\n`);
+    return;
+  }
   console.log(`🔄 Activating Node For Wallet - [${wallet.address}]`);
   try {
     const timestamp = Date.now();
@@ -130,7 +164,7 @@ const performActivation = async (wallet) => {
       response = await retryOperation(() => startNode(wallet.address, signature, timestamp));
     } catch (error) {
       if (error.response && [400, 401, 403, 405, 410].includes(error.response.status)) {
-        console.log(`⚠️ Node for Wallet [${wallet.address}] already active (${error.response.status}). Skipping activation.`);
+        console.log(`⚠️  Node for Wallet [${wallet.address}] already active (${error.response.status}). Skipping activation.\n`);
         if (activationRecord) {
           activationRecord.last_activation = timestamp;
         } else {
@@ -143,7 +177,7 @@ const performActivation = async (wallet) => {
       }
     }
     if (response.data.message === "node action executed successfully") {
-      console.log(`🤖 Node Successfully Activated - come back tomorrow \n`);
+      console.log(`🤖 Node Successfully Activated - come back tomorrow\n`);
       if (activationRecord) {
         activationRecord.last_activation = timestamp;
       } else {
@@ -151,10 +185,10 @@ const performActivation = async (wallet) => {
       }
       saveActivated(activated);
     } else {
-      console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}] \n`);
+      console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}]\n`);
     }
   } catch (error) {
-    console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}] after retries \n`);
+    console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}]\n`);
   }
 };
 
@@ -168,21 +202,38 @@ const performDailyNodeActivation = async () => {
 
 const performDailyPointClaiming = async () => {
   const wallets = loadWallets();
+  const proxies = loadProxies();
   for (const wallet of wallets) {
+    let proxyId = "N/A";
     try {
-      console.log(`🧷 Claiming Daily Points for Wallet - [${wallet.address}]`);
+      proxyId = wallet.proxy.split('zone-custom-session-')[1].split('-sessTime')[0];
+    } catch (e) {}
+    console.log(`⚙️  Using Proxy ID - [${proxyId}]`);
+    console.log(`🧷 Claiming Daily Points for Wallet - [${wallet.address}]`);
+    try {
       const timestamp = Date.now();
       const message = `I am claiming my daily node point for ${wallet.address} at ${timestamp}`;
       const walletInstance = new ethers.Wallet(wallet.privateKey);
       const signature = await walletInstance.signMessage(message);
-      const response = await retryOperation(() => claimDailyPoints(wallet.address, signature, timestamp));
+      const agent = new SocksProxyAgent(wallet.proxy);
+      const response = await retryOperation(
+        () => claimDailyPoints(wallet.address, signature, timestamp, { httpAgent: agent, httpsAgent: agent }),
+        5,
+        1000,
+        wallet,
+        proxies
+      );
       if (response.data.message === "node points claimed successfully") {
         console.log(`💼 Wallet [${wallet.address}] - Has successfully claimed daily points.\n`);
       } else {
-        console.log(`🔴 Failed to Claim Points for Wallet [${wallet.address}] \n`);
+        console.log(`🔴 Points has already been claimed for Wallet - [${wallet.address}]\n`);
       }
     } catch (error) {
-      console.log(`🔴 Failed to Claim Points for Wallet [${wallet.address}] after retries \n`);
+      if (error.response && error.response.status === 400) {
+        console.log(`🔴 Points has already been claimed for Wallet - [${wallet.address}]\n`);
+      } else {
+        console.log(`🔴 Points has already been claimed for Wallet -  [${wallet.address}]\n`);
+      }
     }
     await new Promise(resolve => setTimeout(resolve, 5000));
   }
@@ -226,4 +277,3 @@ const mainMenu = async () => {
 };
 
 mainMenu();
-
