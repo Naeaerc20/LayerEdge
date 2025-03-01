@@ -1,21 +1,46 @@
 # LayerEdge Auto Farming
 
-Welcome to this code that gon a help you tp farm LayerEdge and its upcoming $EDGE token with many wallets, perform daily activation, point claim etc...
+LayerEdge specialized code for Daily Auto-Activation Node, Check-In, Mint Pass, Complete tasks & send proofs
 
-# Instructions
+## Project Formart
 
-1. Clone repository using "git clone https://github.com/Naeaerc20/LayerEdge"
-2. Open repositoriy using "cd LayerEdge"
-3. Install Necessary packages using "npm install"
-4. Set your proxies at "proxies.txt" from 2captcha service with format: socks5://login:pass@ip:port
-5. Use "wallet_aggregator.js" to add your own wallets in the code or "wallet_generator.js" to create new addresses
-6. Run the script using "index.js"
+``` shell
 
-# Update
+LayerEdge/
+├── README.md           # Project documentation and overview
+├── index.js            # Main entry point
+├── package.json        # Project metadata and dependencies
+├── package-lock.json   # Lock file for dependency versions
+├── scripts/            # Contains API-related scripts
+│   └── apis.js         # Implements API functions and request handling
+├── utils/              # Utility scripts and data files
+│   ├── wallet_generator.js  # Script for generating wallets
+│   ├── wallet_aggregator.js # Script for aggregating wallet information
+│   ├── wallets.json         # Stores wallet data
+│   └── proxies.txt          # Proxy configuration file
+└── data/               # Informational JSON files
+    ├── activated.json  # Tracks activated accounts
+    └── registered.json # Tracks registered accounts
 
-1. If you're facing errors with account registration it's because by default the code uses my ref code to register each wallet, so you must replacte it with your own referral code
-2. Go to https://dashboard.layeredge.io/ - copy your referral code & replace it using "nano scripts/apis.js" on the following lines: https://prnt.sc/s3oNVtXjVOdp
-For more questions don't hesitate to open a request or contact interal
-3. Added "activated.json" in case code stops it saves what nodes are already activated so it doesn't make bad requests all time
+```
 
-Enjoy it :)
+## Instructions
+
+``` shell
+
+1. git clone https://github.com/Naeaerc20/LayerEdge
+2. cd LayerEdge
+3. Use any of following prompts to interact with the CLI
+
+## Prompts
+
+- npm start - runs main code application index.js
+- npm run generate - runs wallet generator requesting amount of wallets to be created
+- npm run aggregate - runs wallet aggreator asking you to insert privateKeys of the wallets you wish to add
+
+## Notes
+
+1. Now "proxies.txt" file is on "utils" so add your proxies using "nano utils/proxies.txt" - generate them via 2CAPTCHA
+Proxy Format is: socks5://login:pass@ip:port
+
+Good Luck Team!

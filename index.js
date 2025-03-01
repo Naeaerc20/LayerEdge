@@ -2,11 +2,13 @@ const consoleClear = require('console-clear');
 const figlet = require('figlet');
 const inquirer = require('inquirer');
 const fs = require('fs');
+const path = require('path');
 const { registerWallet, startNode, getProxyIP, claimDailyPoints } = require('./scripts/apis');
 const ethers = require('ethers');
 const colors = require('colors');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 
+// Se reintentan solo los errores de "socket hang up", ECONNRESET, 502 y 504.
 const retryOperation = async (operation, maxRetries = 1, delayTime = 1000, wallet = null, proxies = null) => {
   let phase = 1;
   while (phase <= 2) {
@@ -15,24 +17,20 @@ const retryOperation = async (operation, maxRetries = 1, delayTime = 1000, walle
       try {
         return await operation();
       } catch (error) {
-        if ((error.message && error.message.includes("socket hang up")) || error.code === 'ECONNRESET') {
+        if (
+          (error.message && error.message.includes("socket hang up")) ||
+          error.code === 'ECONNRESET' ||
+          (error.response && (error.response.status === 502 || error.response.status === 504))
+        ) {
           attempts++;
-          console.log(`Socket hang up error for wallet [${wallet ? wallet.address : 'N/A'}]. Attempt ${attempts} of ${maxRetries} in phase ${phase}.`);
+          const errCode = error.response ? error.response.status : (error.code || 'N/A');
+          console.log(`Retry error for wallet [${wallet ? wallet.address : 'N/A'}] with error code [${errCode}]. Attempt ${attempts} of ${maxRetries} in phase ${phase}.`);
           if (attempts < maxRetries) {
             await new Promise(resolve => setTimeout(resolve, delayTime));
             continue;
-          }
-        } else if (error.response && [400, 401, 403, 405, 410].includes(error.response.status)) {
-          throw error;
-        } else {
-          attempts++;
-          if (attempts < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, delayTime));
-            continue;
-          } else {
-            throw error;
           }
         }
+        throw error;
       }
     }
     if (wallet && proxies && phase === 1) {
@@ -50,14 +48,29 @@ const retryOperation = async (operation, maxRetries = 1, delayTime = 1000, walle
 };
 
 const loadActivated = () => {
-  if (!fs.existsSync('activated.json')) {
-    fs.writeFileSync('activated.json', JSON.stringify([]));
+  const filePath = path.join('data', 'activated.json');
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify([]));
   }
-  return JSON.parse(fs.readFileSync('activated.json', 'utf-8'));
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 };
 
 const saveActivated = (activated) => {
-  fs.writeFileSync('activated.json', JSON.stringify(activated, null, 2));
+  const filePath = path.join('data', 'activated.json');
+  fs.writeFileSync(filePath, JSON.stringify(activated, null, 2));
+};
+
+const loadRegistered = () => {
+  const filePath = path.join('data', 'registered.json');
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify([]));
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+};
+
+const saveRegistered = (registered) => {
+  const filePath = path.join('data', 'registered.json');
+  fs.writeFileSync(filePath, JSON.stringify(registered, null, 2));
 };
 
 const displayBanner = () => {
@@ -68,28 +81,18 @@ const displayBanner = () => {
 };
 
 const loadProxies = () => {
-  const data = fs.readFileSync('proxies.txt', 'utf-8');
+  const proxiesPath = path.join('utils', 'proxies.txt');
+  const data = fs.readFileSync(proxiesPath, 'utf-8');
   return data.split('\n').filter(line => line.trim() !== '');
 };
 
 const loadWallets = () => {
-  if (!fs.existsSync('wallets.json')) {
-    fs.writeFileSync('wallets.json', JSON.stringify([]));
+  const walletsPath = path.join('utils', 'wallets.json');
+  if (!fs.existsSync(walletsPath)) {
+    fs.writeFileSync(walletsPath, JSON.stringify([]));
   }
-  const data = fs.readFileSync('wallets.json', 'utf-8');
+  const data = fs.readFileSync(walletsPath, 'utf-8');
   return JSON.parse(data);
-};
-
-const loadRegistered = () => {
-  if (!fs.existsSync('registered.json')) {
-    fs.writeFileSync('registered.json', JSON.stringify([]));
-  }
-  const data = fs.readFileSync('registered.json', 'utf-8');
-  return JSON.parse(data);
-};
-
-const saveRegistered = (registered) => {
-  fs.writeFileSync('registered.json', JSON.stringify(registered, null, 2));
 };
 
 const registerAccounts = async () => {
@@ -114,17 +117,24 @@ const registerAccounts = async () => {
     }
     console.log(`⚙️  Registering Wallet - [${wallet.address}]`);
     try {
-      const response = await retryOperation(() => registerWallet(wallet.address));
+      const response = await retryOperation(() => registerWallet(wallet.address), 5, 1000, wallet, proxies);
       if (response.data.message === "registered wallet address successfully") {
         console.log(`🟢 Wallet [${wallet.address}] - Has been successfully Registered\n`);
         registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: true });
       } else {
-        console.log(`🔴 Wallet [${wallet.address}] - Registration Failed\n`);
+        console.log(`🔴 Register Failed for Wallet - [${wallet.address}] code [${response.status || 'N/A'}] API Response: ${JSON.stringify(response.data)}\n`);
         registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: false });
       }
     } catch (error) {
-      console.log(`🔴 Wallet [${wallet.address}] - Registration Failed after retries\n`);
-      registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: false });
+      if (error.response && error.response.status === 409) {
+        console.log(`⚠️  Wallet [${wallet.address}] is already registered (409).\n`);
+        registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: true });
+      } else {
+        const code = error.response ? error.response.status : 'N/A';
+        const apiResponse = error.response ? JSON.stringify(error.response.data) : error.message;
+        console.log(`🔴 Register Failed for Wallet - [${wallet.address}] code [${code}] API Response: ${apiResponse}\n`);
+        registered.push({ address: wallet.address, proxy: wallet.proxy, is_registered: false });
+      }
     }
     saveRegistered(registered);
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -161,20 +171,13 @@ const performActivation = async (wallet) => {
     const signature = await walletInstance.signMessage(message);
     let response;
     try {
-      response = await retryOperation(() => startNode(wallet.address, signature, timestamp));
+      // Se reintenta hasta 3 veces (intento inicial + 2 reintentos) para errores 502/504, etc.
+      response = await retryOperation(() => startNode(wallet.address, signature, timestamp), 3, 1000, wallet, loadProxies());
     } catch (error) {
-      if (error.response && [400, 401, 403, 405, 410].includes(error.response.status)) {
-        console.log(`⚠️  Node for Wallet [${wallet.address}] already active (${error.response.status}). Skipping activation.\n`);
-        if (activationRecord) {
-          activationRecord.last_activation = timestamp;
-        } else {
-          activated.push({ address: wallet.address, last_activation: timestamp });
-        }
-        saveActivated(activated);
-        return;
-      } else {
-        throw error;
-      }
+      const code = error.response ? error.response.status : 'N/A';
+      const apiResponse = error.response ? JSON.stringify(error.response.data) : error.message;
+      console.log(`🔴 Node Activation Failed for Wallet - [${wallet.address}] code [${code}] API Response: ${apiResponse}\n`);
+      return;
     }
     if (response.data.message === "node action executed successfully") {
       console.log(`🤖 Node Successfully Activated - come back tomorrow\n`);
@@ -185,10 +188,12 @@ const performActivation = async (wallet) => {
       }
       saveActivated(activated);
     } else {
-      console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}]\n`);
+      console.log(`🔴 Node Activation Failed for Wallet - [${wallet.address}] API Response: ${JSON.stringify(response.data)}\n`);
     }
   } catch (error) {
-    console.log(`🔴 Node Activation Failed for Wallet [${wallet.address}]\n`);
+    const code = error.response ? error.response.status : 'N/A';
+    const apiResponse = error.response ? JSON.stringify(error.response.data) : error.message;
+    console.log(`🔴 Node Activation Failed for Wallet - [${wallet.address}] code [${code}] API Response: ${apiResponse}\n`);
   }
 };
 
@@ -216,9 +221,10 @@ const performDailyPointClaiming = async () => {
       const walletInstance = new ethers.Wallet(wallet.privateKey);
       const signature = await walletInstance.signMessage(message);
       const agent = new SocksProxyAgent(wallet.proxy);
+      // Se reintenta hasta 3 veces para errores 502/504, etc.
       const response = await retryOperation(
         () => claimDailyPoints(wallet.address, signature, timestamp, { httpAgent: agent, httpsAgent: agent }),
-        5,
+        3,
         1000,
         wallet,
         proxies
@@ -226,14 +232,12 @@ const performDailyPointClaiming = async () => {
       if (response.data.message === "node points claimed successfully") {
         console.log(`💼 Wallet [${wallet.address}] - Has successfully claimed daily points.\n`);
       } else {
-        console.log(`🔴 Points has already been claimed for Wallet - [${wallet.address}]\n`);
+        console.log(`🔴 Daily Point Claim Failed for Wallet - [${wallet.address}] API Response: ${JSON.stringify(response.data)}\n`);
       }
     } catch (error) {
-      if (error.response && error.response.status === 400) {
-        console.log(`🔴 Points has already been claimed for Wallet - [${wallet.address}]\n`);
-      } else {
-        console.log(`🔴 Points has already been claimed for Wallet -  [${wallet.address}]\n`);
-      }
+      const code = error.response ? error.response.status : 'N/A';
+      const apiResponse = error.response ? JSON.stringify(error.response.data) : error.message;
+      console.log(`🔴 Daily Point Claim Failed for Wallet - [${wallet.address}] code [${code}] API Response: ${apiResponse}\n`);
     }
     await new Promise(resolve => setTimeout(resolve, 5000));
   }
@@ -262,12 +266,15 @@ const mainMenu = async () => {
       setInterval(async () => {
         await performDailyNodeActivation();
         await performDailyPointClaiming();
+        console.log("✅ Workflow completed today! - Waiting 24 hours for next run.");
       }, 24 * 60 * 60 * 1000);
       await performDailyNodeActivation();
       await performDailyPointClaiming();
+      console.log("✅ Workflow completed today! - Waiting 24 hours for next run.");
     } else {
       await performDailyNodeActivation();
       await performDailyPointClaiming();
+      console.log("✅ Workflow completed today! - Waiting 24 hours for next run.");
     }
   } else if (answers.option === 'Register Accounts') {
     await registerAccounts();
