@@ -7,20 +7,23 @@ LayerEdge specialized code for Daily Auto-Activation Node, Check-In, Mint Pass, 
 ``` shell
 
 LayerEdge/
-├── README.md           # Project documentation and overview
-├── index.js            # Main entry point
-├── package.json        # Project metadata and dependencies
-├── package-lock.json   # Lock file for dependency versions
-├── scripts/            # Contains API-related scripts
-│   └── apis.js         # Implements API functions and request handling
-├── utils/              # Utility scripts and data files
-│   ├── wallet_generator.js  # Script for generating wallets
-│   ├── wallet_aggregator.js # Script for aggregating wallet information
-│   ├── wallets.json         # Stores wallet data
-│   └── proxies.txt          # Proxy configuration file
-└── data/               # Informational JSON files
-    ├── activated.json  # Tracks activated accounts
-    └── registered.json # Tracks registered accounts
+├── README.md               # Project documentation and overview
+├── index.js                # Main entry point
+├── package.json            # Project metadata and dependencies
+├── package-lock.json       # Lock file for dependency versions
+├── scripts/                # Contains API-related scripts
+│   └── apis.js             # Implements API functions and request handling
+├── utils/                  # Utility scripts and data files
+│   ├── wallet_generator.js # Script for generating wallets
+│   ├── wallet_aggregator.js# Script for aggregating wallet information
+│   ├── wallets.json        # Stores wallet data
+│   └── proxies.txt         # Proxy configuration file
+├── data/                   # Informational JSON files
+│   ├── activated.json      # Tracks activated accounts
+│   └── registered.json     # Tracks registered accounts
+└── pledge_pass/            # Contains smart contract interaction files
+    ├── ABI.js              # Exports RPC configuration, contract address, and contract ABI
+    └── mint.js             # Script for verifying NFT ownership and minting NFTs if needed
 
 ```
 
@@ -37,6 +40,7 @@ LayerEdge/
 - npm start - runs main code application index.js
 - npm run generate - runs wallet generator requesting amount of wallets to be created
 - npm run aggregate - runs wallet aggreator asking you to insert privateKeys of the wallets you wish to add
+- npm run mint - runs script dedicated for minting OG Pledge Pass & Free Pass
 
 ## Notes
 
