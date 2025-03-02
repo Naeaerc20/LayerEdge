@@ -74,11 +74,71 @@ const claimDailyPoints = async (walletAddress, signature, timestamp, axiosOption
   }
 };
 
+const verifyPremiumPass = async (messageSigned, timestamp, walletAddress) => {
+  const url = 'https://referralapi.layeredge.io/api/task/nft-verification/2';
+  const payload = { sign: messageSigned, timestamp, walletAddress };
+  try {
+    const response = await axios.post(url, payload, { headers: commonHeaders });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const verifyBasicPass = async (messageSigned, timestamp, walletAddress) => {
+  const url = 'https://referralapi.layeredge.io/api/task/nft-verification/1';
+  const payload = { sign: messageSigned, timestamp, walletAddress };
+  try {
+    const response = await axios.post(url, payload, { headers: commonHeaders });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const verifyProofSubmission = async (messageSigned, timestamp, walletAddress) => {
+  const url = 'https://referralapi.layeredge.io/api/task/proof-submission';
+  const payload = { sign: messageSigned, timestamp, walletAddress };
+  try {
+    const response = await axios.post(url, payload, { headers: commonHeaders });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const sendProof = async (address, message, proof, messageSigned) => {
+  const url = 'https://dashboard.layeredge.io/api/send-proof';
+  const payload = { address, message, proof, signature: messageSigned };
+  try {
+    const response = await axios.post(url, payload, { headers: commonHeaders });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const checkNodeTask = async (messageSigned, timestamp, walletAddress) => {
+  const url = 'https://referralapi.layeredge.io/api/task/node-points';
+  const payload = { sign: messageSigned, timestamp, walletAddress };
+  try {
+    const response = await axios.post(url, payload, { headers: commonHeaders });
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   validateRefCode,
   registerWallet,
   verifyCaptcha,
   startNode,
   getProxyIP,
-  claimDailyPoints
+  claimDailyPoints,
+  verifyPremiumPass,
+  verifyBasicPass,
+  verifyProofSubmission,
+  sendProof,
+  checkNodeTask
 };

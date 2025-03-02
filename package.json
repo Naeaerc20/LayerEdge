@@ -7,7 +7,8 @@
     "start": "node index.js",
     "generate": "node utils/wallet_generator.js",
     "aggregate": "node utils/wallet_aggregator.js",
-    "mint": "node pledge_pass/mint.js"
+    "mint": "node pledge_pass/mint.js",
+    "tasks":  "node tasks.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
