@@ -24,8 +24,16 @@ LayerEdge/
 │   └── proofs.json            # Stores proof records (address, proof, is_submitted, is_verified)
 ├── pledge_pass/               # Contains smart contract interaction files
 │   ├── ABI.js                 # Exports RPC configuration, contract address, and contract ABI
-│   └── mint.js                # Script for verifying NFT ownership and minting NFTs if needed
+│   ├── mint.js                # Script for verifying NFT ownership and minting NFTs if needed
+│   └── strategy/              # Contains faucet deployment and management scripts
+│       ├── chain.js           # Handles blockchain network configuration and interactions
+│       ├── deploy.js          # Script to deploy the faucet contract to the blockchain
+│       ├── faucetABI.json     # Contains the ABI for the faucet contract
+│       ├── faucet.sol         # Solidity source code for the faucet contract
+│       ├── help.txt           # Provides documentation and usage instructions for the faucet scripts
+│       └── transfers.js       # Manages token transfers from the faucet contract
 └── tasks.js                   # Implements automated tasks for completing NFT verification, proof submission, and node tasks.
+
 
 ```
 
@@ -49,5 +57,7 @@ LayerEdge/
 
 1. Now "proxies.txt" file is on "utils" so add your proxies using "nano utils/proxies.txt" - generate them via 2CAPTCHA
 Proxy Format is: socks5://login:pass@ip:port
+
+2. I've added directory "strategy" for you to deploy your own faucet contract fill it and claim faucet to mint pass on all your accounts, instructions already added
 
 Good Luck Team!

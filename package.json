@@ -8,7 +8,7 @@
     "generate": "node utils/wallet_generator.js",
     "aggregate": "node utils/wallet_aggregator.js",
     "mint": "node pledge_pass/mint.js",
-    "tasks":  "node tasks.js"
+    "tasks": "node tasks.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -18,7 +18,8 @@
     "figlet": "^1.6.0",
     "inquirer": "^8.2.4",
     "readline-sync": "^1.4.10",
-    "socks-proxy-agent": "^8.0.5"
+    "socks-proxy-agent": "^8.0.5",
+    "solc": "^0.8.28"
   },
   "author": "Naeaerc20",
   "license": "ISC"

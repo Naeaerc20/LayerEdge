@@ -1,0 +1,23 @@
+How to deploy & use your own Faucet Contract ?
+
+1. First you need to do is edit "deploy.js" using "nano deploy.js" and set your own DEV_ADDRESS & DEV_PRIVATE_KEY
+
+2. Then you should deploy your contract, (I advice use remix for lower fees).
+If you want to use remix, copy all the content on faucet.sol, paste it on a new file on remix, compilate and deploy on Base Chain
+If you want to use the code simply run node deploy.js after you fill your wallet details (make sure to have enough funds for fees).
+
+3. After contract is deployed you should edit faucetABI.json using "nano faucetABI.json",
+scroll down and you should replace "YOUR_CONTRACT_HERE" with your contract deployed.
+
+4. After you deploy & set your deployed contract you can run node transfers.js, first you should transfer funds to the contract.
+
+5. After contract is filled you should use "Manage Whitelist" for whitelisting each one of the wallets that gonna claim the faucet.
+
+6. After all wallets are whitelisted you can use "Claim Funds From Contract".
+Insert the amount that ALL wallets gonna claim like (I advice 0.0014 o 0.0015) So they can have fees for minting,
+after you make that the code gonna start claiming fees on each wallet.
+
+NOTE:
+
+1. No problem if the wallets are empty, fees are paid from deployed address not from claiming account
+2. After claiming funds you can remove whitelist if you wish and withdraw non-used funds from contract
